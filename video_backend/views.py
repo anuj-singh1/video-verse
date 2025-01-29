@@ -3,22 +3,22 @@ import uuid
 from datetime import datetime, timedelta
 
 # import cloudinary.uploader
-import pytz
 import requests
-from django.http import JsonResponse
+from django.http import JsonResponse, Http404
 from django.shortcuts import get_object_or_404, redirect
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 # from dotenv import load_dotenv
 from requests import Response
-from rest_framework import serializers
+from rest_framework import serializers, status
 
+from video_server.settings import local_tz, MAX_UPLOAD_FILE_SIZE, UPLOAD_PRESET
 from .auth import authenticate_api
 from .models import Video
 
+
 # load_dotenv()
 # config = cloudinary.config(secure=True)
-local_tz = pytz.timezone('Asia/Kolkata')
 
 
 class VideoSerializer(serializers.ModelSerializer):
@@ -62,7 +62,7 @@ def video_list(request) -> JsonResponse:
 
 def save_video(cloudinary_response) -> Video:
     return Video.objects.create(
-        title=cloudinary_response.get("public_id"),
+        title=f'{cloudinary_response.get("public_id")}.{cloudinary_response.get("format")}',
         file_url=cloudinary_response.get("secure_url"),
         duration=cloudinary_response.get("duration", 0),
         shared_link=None,
@@ -71,7 +71,7 @@ def save_video(cloudinary_response) -> Video:
 
 def upload_video_to_cloud(file) -> Response:
     cloudinary_url = "https://api.cloudinary.com/v1_1/anuj-singh-devfolio/video/upload"
-    data = {"upload_preset": ""}
+    data = {"upload_preset": UPLOAD_PRESET}
     files = {"file": file}
 
     # return cloudinary.uploader.upload_large(file, resource_type="video",
@@ -87,6 +87,12 @@ def video_create(request) -> JsonResponse:
     file = request.FILES.get("file")
     if not file:
         return JsonResponse({"error": "No file provided"}, status=400)
+    if file.content_type not in ['video/mp4', 'video/mkv', 'video/avi']:
+        return JsonResponse({'error': 'Unsupported video format'}, status=status.HTTP_400_BAD_REQUEST)
+    if file.size > MAX_UPLOAD_FILE_SIZE:
+        return JsonResponse({'error': f'File size should not exceed {MAX_UPLOAD_FILE_SIZE / (1024 * 1024):.2f} MB'},
+                            status=status.HTTP_400_BAD_REQUEST)
+
     try:
         response = upload_video_to_cloud(file)
         if response.status_code == 200:
@@ -149,6 +155,8 @@ def video_trim(request, video_id) -> JsonResponse:
         '''
 
         return JsonResponse(VideoSerializer(video).data, status=201)
+    except Http404 as e:
+        return JsonResponse({"error": f"Invalid video id: {video_id}"}, status=404)
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)
 
@@ -210,6 +218,7 @@ def video_access(request, unique_id) -> JsonResponse:
             return JsonResponse({"error": "The shared link has expired."}, status=403)
 
         return redirect(video.file_url)
-
-    except Video.DoesNotExist:
-        return JsonResponse({"error": "Invalid or expired link"}, status=404)
+    except Http404 as e:
+        return JsonResponse({"error": f"Invalid or expired link"}, status=404)
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)

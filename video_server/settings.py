@@ -13,6 +13,8 @@ import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
+import pytz
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
@@ -129,5 +131,7 @@ MEDIA_DIR = os.path.join(BASE_DIR, 'media_files')
 if not os.path.exists(MEDIA_DIR):
     os.makedirs(MEDIA_DIR)
 
+UPLOAD_PRESET = os.getenv('CLOUDINARY_UPLOAD_PRESET')
 MAX_UPLOAD_FILE_SIZE = int(os.getenv('MAX_UPLOAD_FILE_SIZE', 20)) * 1024 * 1024  # Size in MB
 AUTH_STATIC_TOKEN = os.getenv('AUTH_TOKEN')
+local_tz = pytz.timezone('Asia/Kolkata')
