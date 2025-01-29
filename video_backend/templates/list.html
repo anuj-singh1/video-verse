@@ -1,0 +1,105 @@
+{% load static %}
+
+<!-- index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Manager</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            padding: 0;
+        }
+        .button {
+            margin: 10px 0;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Video Manager</h1>
+    <button class="button" onclick="window.location.href='{% url 'video_list' %}'">List Videos</button>
+    <button class="button" onclick="window.location.href='{% url 'video_upload' %}'">Upload Video</button>
+</body>
+</html>
+
+
+<!-- list.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video List</title>
+</head>
+<body>
+    <h1>Video List</h1>
+    <ul id="video-list"></ul>
+    <button id="trim-button" disabled onclick="trimVideo()">Trim Video</button>
+    <button id="merge-button" disabled onclick="mergeVideos()">Merge Videos</button>
+    <button id="share-button" disabled onclick="getSharedLink()">Get Shared Link</button>
+    <p id="shared-link"></p>
+
+    <script>
+        fetch('/api/videos/list')
+            .then(response => response.json())
+            .then(videos => {
+                const listContainer = document.getElementById('video-list');
+                videos.forEach(video => {
+                    const listItem = document.createElement('li');
+                    const checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox';
+                    checkbox.value = video.id;
+                    checkbox.addEventListener('change', handleSelection);
+                    listItem.appendChild(checkbox);
+                    listItem.appendChild(document.createTextNode(`${video.title} - ${video.duration}s`));
+                    listContainer.appendChild(listItem);
+                });
+            });
+
+        function handleSelection() {
+            const selected = document.querySelectorAll('#video-list input:checked');
+            document.getElementById('trim-button').disabled = selected.length !== 1;
+            document.getElementById('merge-button').disabled = selected.length < 2;
+            document.getElementById('share-button').disabled = selected.length !== 1;
+        }
+
+        function getSharedLink() {
+            const selected = document.querySelector('#video-list input:checked');
+            if (!selected) return;
+
+            const videoId = selected.value;
+            fetch(`/api/videos/${videoId}/share`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.shared_link) {
+                        document.getElementById('shared-link').innerHTML = `
+                            <strong>Shared Link:</strong> <a href="${data.shared_link}" target="_blank">${data.shared_link}</a><br>
+                            <strong>Expires At:</strong> ${data.expires_at}
+                        `;
+                    } else {
+                        document.getElementById('shared-link').innerText = 'No shared link available.';
+                    }
+                })
+                .catch(error => console.error('Error fetching shared link:', error));
+        }
+
+        function trimVideo() {
+            alert('Trim video functionality will be implemented here.');
+        }
+
+        function mergeVideos() {
+            alert('Merge video functionality will be implemented here.');
+        }
+    </script>
+</body>
+</html>

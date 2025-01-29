@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload Video</title>
+</head>
+<body>
+    <h1>Upload Video</h1>
+    <form id="upload-form" enctype="multipart/form-data">
+        <input type="file" name="files[]" multiple />
+        <input type="submit" value="Upload Files" />
+    </form>
+    <p id="data"></p>
+    <p id="error-message" style="color: red;"></p>
+
+    <script>
+        const maxFileSize = {{ max_file_size }}; // Max file size in bytes
+        const url = 'https://api.cloudinary.com/v1_1/hzxyensd5/image/upload';
+
+        document.getElementById('upload-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const files = document.querySelector('[type=file]').files;
+            const formData = new FormData();
+            let errorMessage = document.getElementById('error-message');
+            errorMessage.textContent = '';
+
+            for (let i = 0; i < files.length; i++) {
+                let file = files[i];
+
+                if (file.size > maxFileSize) {
+                    errorMessage.textContent = `File "${file.name}" exceeds the maximum allowed size.`;
+                    return;
+                }
+
+                formData.append('file', file);
+                formData.append('upload_preset', 'Unsinged_upload');
+                fetch(url, {
+                    method: 'POST',
+                    body: formData,
+                })
+                .then(response => response.json())
+                .then(data => {
+                    fetch('/api/videos/create', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(data)
+                    });
+                    document.getElementById('data').innerHTML += JSON.stringify(data);
+                });
+            }
+        });
+    </script>
+</body>
+</html>
